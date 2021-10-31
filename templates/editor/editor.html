@@ -9,11 +9,10 @@ Create Document
 <div>
     <script src="https://unpkg.com/pdf-lib"></script>
     <div style="display:flex; ">
-        <div id="pdf-container">
-            <div id="pdf-file">
-                <div class="drop-zone">
-                    <!--<span class="drop=zone__prompt">Drop image</span>
-                    <input type="file" name="myfile" id="" class="drop-zone__input">-->
+        <div class="doc-container">
+            <div class="page">
+                <div id="pdf-file" class="doc-content">
+
                 </div>
             </div>
         </div>
@@ -37,7 +36,7 @@ Create Document
     <style>
 
 
-        #pdf-container{
+        .doc-container{
             display: block;
             width: 75vw;
             height: 89vh;
@@ -45,14 +44,19 @@ Create Document
             overflow-y: scroll;
         }
 
-        #pdf-file{
+        .page{
             display:  block;
             position:  relative;
             width: 80%;
             height: 800px;
             margin: 30px auto;
+            padding: 5%;
             background-color: #fff;
             box-shadow: 0px 0px 5px #333;
+        }
+
+        .doc-content{
+            height: 100%;
         }
 
         .menu-container{
@@ -116,12 +120,15 @@ Create Document
 
     <script>
 
-        const textArray = [];
+        const fileContent = [];
 
         let resizing = false;
 
         const txtBtn = document.getElementById("txt-btn");
         const imgBtn = document.getElementById("img-btn");
+        const tableBtn = document.getElementById("table-btn");
+        const dateBtn = document.getElementById("date-btn");
+        const signatureBtn = document.getElementById("signature-btn");
 
         txtBtn.ondragstart = (event) => {
             event.dataTransfer.setData("text/plain", "TEXT_BUTTON");
@@ -129,6 +136,18 @@ Create Document
 
         imgBtn.ondragstart = (event) => {
             event.dataTransfer.setData("text/plain", "IMG_BUTTON");
+        }
+
+        tableBtn.ondragstart = (event) => {
+            event.dataTransfer.setData("text/plain", "TABLE");
+        }
+
+        dateBtn.ondragstart = (event) => {
+            event.dataTransfer.setData("text/plain", "DATE");
+        }
+
+        signatureBtn.ondragstart = (event) => {
+            event.dataTransfer.setData("text/plain", "SIGN");
         }
 
 
@@ -163,10 +182,6 @@ Create Document
                 };
             }
 
-            //('top', 'left');
-            //('top', 'right');
-            //('bottom', 'left');
-            //('bottom', 'right');
 
             resizer.onmousedown = (event) => {
                 let initX = event.screenX;
@@ -187,8 +202,6 @@ Create Document
 
                 window.addEventListener('mousemove', resizeElement);
                 function resizeElement(ev) {
-                    //holder.removeEventListener('mousedown', drag_new);
-                    console.log("In resize Element");
                     if(attr1 == 'bottom' && attr2 == 'right') {
                         holder.style.width = ((ev.screenX - initX) + holderSize.width) + 'px';
                         holder.style.height = ((ev.screenY - initY) + holderSize.height) + 'px'
@@ -206,8 +219,7 @@ Create Document
                         holder.style.width = (holderSize.width + (ev.screenX - initX)) + 'px';
                         holder.style.height = (holderSize.height - (ev.screenY - initY)) + 'px';
                     }
-                    const inp = holder.getElementsByTagName("textarea");
-                    inp[0].focus();
+
                 }
 
                 window.addEventListener('mouseup', stopResizing);
@@ -217,10 +229,7 @@ Create Document
                     resizing = false;
 
                 }
-
             }
-
-
             return resizer;
         }
 
@@ -238,13 +247,160 @@ Create Document
             textField.style.outline = '0px';
             textField.style.overflow = 'overlay';
 
-            textField.onblur = (eventxt) => {
-                textArray.push(eventxt.target.value);
-                eventxt.preventDefault();
-            };
-
             return textField;
         }
+
+
+        function getDateField(){
+            const d = new Date();
+            const dd = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+
+            const dateField = document.createElement('input');
+            dateField.type = 'date';
+
+            console.log(typeof dd, dd);
+            dateField.value = dd;
+
+            dateField.style.width = '100%';
+            dateField.style.height = '80%';
+            dateField.style.fontSize = '1em';
+            dateField.style.border = 'none';
+            dateField.style.resize = 'none';
+            dateField.style.backgroundColor = '#0000';
+            dateField.style.borderRadius = '0px';
+            dateField.style.outline = '0px';
+            dateField.style.overflow = 'overlay';
+
+            return dateField;
+        }
+
+        function getImageField() {
+            const imgField = document.createElement('input');
+            imgField.type = 'file';
+
+            imgField.style.margin = '20%';
+            imgField.style.cursor = 'pointer';
+            imgField.style.border = 'none';
+            imgField.style.resize = 'none';
+            imgField.style.fontSize = 'xx-small';
+            imgField.style.backgroundColor = '#0000';
+            imgField.style.borderRadius = '0px';
+            imgField.style.outline = '0px';
+            imgField.style.overflow = 'overlay';
+            imgField.setAttribute('accept', 'image/*');
+            imgField.innerText = 'Choose image';
+
+            imgField.onchange = (ev) => {
+                const image = document.createElement('img');
+                image.src = URL.createObjectURL(ev.target.files[0]);
+                image.style.width = '100%';
+                image.style.height = '95%';
+                image.style.marginTop = '4%';
+                image.style.cursor = 'grab';
+                image.setAttribute('draggable', false);
+                image.setAttribute('contenteditable', true);
+                ev.target.style.display = 'none';
+                ev.target.parentNode.append(image);
+            }
+
+            return imgField;
+        }
+
+
+        function getSignField(){
+
+            const signF = document.createElement('div');
+            signF.style.width = '100%';
+            signF.style.height = '2em';
+            signF.style.display = 'flex';
+            signF.style.cursor = 'pointer';
+            signF.style.justifyContent = 'center';
+            signF.style.alignItems = 'center';
+            signF.innerHTML = 'Signature...<i class="fa fa-pencil"></i>';
+
+            signF.onclick = (ev) => {
+                const containerDIV = document.createElement('div');
+                containerDIV.style.width = '100%';
+                containerDIV.style.height = '100%';
+                containerDIV.style.top = '0';
+                containerDIV.style.position = 'absolute';
+                containerDIV.style.backgroundColor = '#22222277';
+                containerDIV.style.display = 'flex';
+                containerDIV.style.justifyContent = 'center';
+                containerDIV.style.alignItems = 'center';
+                containerDIV.setAttribute('data-name', 'containerDIV');
+
+                const svgEditor = document.createElement('div');
+                svgEditor.style.height = '50vh';
+                svgEditor.style.width = '50vw';
+                svgEditor.style.backgroundColor = '#fff';
+                svgEditor.style.borderRadius = '3%';
+
+                const canvas = document.createElement('canvas');
+                const width = screen.width / 3 ;
+                const height = screen.height / 3 ;
+                canvas.setAttribute('width', width + 'px');
+                canvas.setAttribute('height', height + 'px');
+                canvas.style.border = '1px solid black';
+                canvas.style.margin = '5%';
+
+                const ctx = canvas.getContext('2d');
+                let drawing = false;
+                const pointArry = [];
+                let startp = {
+                    x: 0,
+                    y: 0
+                };
+                canvas.onmousedown = (ev) => {
+                    drawing = true;
+                    startp.x = ev.target.offsetX;
+                    startp.y = ev.target.offsetY;
+                }
+                canvas.onmouseup = (ev) => { drawing = false }
+                canvas.onmousemove = (ev) => {
+                    if( drawing ){
+                        const p = {
+                            x: ev.pageX - ev.offsetX,
+                            y: ev.pageY - ev.offsetY
+                        }
+                        pointArry.push(p)
+                    }
+                    ctx.lineJoin = 'round';
+                    ctx.lineCap = 'round';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+
+                    //console.log(event);
+                    ctx.moveTo(startp.x, startp.y);
+                    //ctx.lineTo(190, 100);
+                    for(let i = 0; i < pointArry.length ; ++i){
+                        ctx.lineTo(pointArry[i].x,pointArry[i].y)
+                    }
+
+                    ctx.stroke();
+                    //ctx.fillStyle = 'green';
+                    //ctx.fillRect(10, 10, 150, 100);
+                }
+
+                svgEditor.append(canvas);
+                containerDIV.append(svgEditor);
+
+                containerDIV.onclick = (ev) => {
+                    if(ev.target.dataset.name === 'containerDIV'){
+                        ev.target.style.display = 'none';
+                    }
+                }
+
+                const pageCont = document.getElementsByClassName('doc-container');
+                pageCont[0].append(containerDIV);
+            }
+
+            return signF
+
+        }
+
+
+
 
         function getDeleteBtn(){
             const closeBtn = document.createElement('span');
@@ -271,7 +427,7 @@ Create Document
         }
 
 
-        function addTextInput(event){
+        function addInputElement(event, typeOfOperation) {
             const textFHolder = document.createElement('div');
             textFHolder.style.width = '300px';
             textFHolder.style.height = '50px';
@@ -281,7 +437,6 @@ Create Document
             textFHolder.style.top = event.offsetY + 'px';
             textFHolder.style.overflow = 'visible';
             textFHolder.style.cursor = 'move';
-            //textFHolder.setAttribute('draggable', true);
 
             const resizerTL = getResizer('top', 'left');
             const resizerTR = getResizer('top', 'right');
@@ -295,7 +450,6 @@ Create Document
 
             const holderMenu = document.createElement('div');
             holderMenu.style.position = 'absolute';
-            //holderMenu.style.width = '-webkit-fill-available';
             holderMenu.style.height = '25px';
             holderMenu.style.right = '0px';
             holderMenu.style.top = '-30px';
@@ -305,10 +459,40 @@ Create Document
             holderMenu.style.backgroundColor = 'rgb(129 129 129 / 50%)';
             holderMenu.append(getDeleteBtn());
 
-            const textField = getTextField();
+            let inputField = document.createElement('div') ;
+            inputField.setAttribute('draggable', false);
+
+            if(typeOfOperation === 'TEXT_BUTTON'){
+                inputField = getTextField();
+            }
+
+            if(typeOfOperation === 'IMG_BUTTON'){
+                inputField = getImageField();
+                textFHolder.style.height = '150px';
+            }
+
+            if(typeOfOperation === 'TABLE'){
+                //inputField = getTableField();
+            }
+
+            if(typeOfOperation === 'DATE'){
+                textFHolder.style.width = '150px';
+                textFHolder.style.height = '35px';
+                inputField = getDateField();
+            }
+
+            if(typeOfOperation === 'SIGN'){
+                textFHolder.style.width = '150px';
+                textFHolder.style.height = '150px';
+                inputField = getSignField();
+            }
+
+            if(typeOfOperation === ""){
+                return
+            }
 
             textFHolder.append(holderMenu);
-            textFHolder.append(textField);
+            textFHolder.append(inputField);
             event.target.append(textFHolder);
 
             textFHolder.onfocusin = (eventh) => {
@@ -362,10 +546,9 @@ Create Document
                 if(!resizing){
                     let initX = event.screenX;
                     let initY = event.screenY;
-                    textField.focus();
+                    inputField.focus();
 
                     const holder = event.target;
-                    console.log(holder.style.top, holder.style.left)
                     const holderPos = (function () {
                 	    const holderPos = {
                 		    top : parseInt(holder.style.top.slice(0, -2)),
@@ -376,16 +559,12 @@ Create Document
 
                     window.addEventListener('mousemove', moveObject);
                     function moveObject(ev) {
-                        ev.preventDefault()
-
+                        ev.preventDefault();
                         const diffX = ev.screenX - initX;
                         const diffY = ev.screenY - initY;
-
-                        console.log( diffY , diffX )
                         holder.style.top = ( holderPos.top + diffY ) + 'px';
                         holder.style.left = ( holderPos.left + diffX ) + 'px';
-                        console.log(holder.style.top, holder.style.left)
-                        textField.focus();
+                        inputField.focus();
                     }
 
                     window.addEventListener('mouseup', stopMove);
@@ -400,15 +579,15 @@ Create Document
 
             textFHolder.onmousedown = drag_new(event);
 
-            textField.onpointerover = (event) => {
+            inputField.onpointerover = (event) => {
                 textFHolder.removeEventListener('mousedown', drag_new);
             }
 
-            textField.onpointerleave = (event) => {
+            inputField.onpointerleave = (event) => {
                 textFHolder.addEventListener('mousedown', drag_new);
             }
 
-            textField.focus();
+            inputField.focus();
         }
 
 
@@ -421,26 +600,31 @@ Create Document
         pdfFile.ondrop = (event) => {
             event.preventDefault();
             const typeOfOperation = event.dataTransfer.getData("text/plain");
-
-            if(typeOfOperation === 'TEXT_BUTTON'){
-                addTextInput(event);
-            }
-
-            if(typeOfOperation === 'IMG_BUTTON'){
-                console.log('TO DO add image field.')
-            }
-
-            /*if(typeOfOperation === 'MOVE_ELEMENT'){
-                console.log(event.dataTransfer)
-                const loc = event.dataTransferItems.getData("position");
-                console.log(loc)
-            }*/
+            addInputElement(event, typeOfOperation);
         };
 
 
         const showPDF = document.getElementById('show-btn');
 
         showPDF.onclick = () => {
+
+            const file = document.getElementsByClassName('doc-content');
+
+            for( child of file[0].children ){
+                const txt = child.getElementsByTagName("textarea");
+                const elem = {
+                    width: child.style.width,
+                    height: child.style.height,
+                    top: child.style.top,
+                    left: child.style.left,
+                    text: txt[0].value
+                }
+                fileContent.push(elem);
+            }
+
+            console.log(fileContent)
+
+            /*
             cPdf();
             async function cPdf() {
                 const pdfDoc = await PDFLib.PDFDocument.create();
@@ -448,7 +632,9 @@ Create Document
 
                 const { width, height } = page.getSize()
 
-                const fontSize = 30
+                const fontSize = 30;
+
+
                 page.drawText(textArray[0], {
                     x: 50,
                     y: height - 4 * fontSize,
@@ -468,76 +654,11 @@ Create Document
                 pdfViewer.src = pdfDataUri;
                 pdfViewer.style.display = 'block';
 
-            }
+            }*/
 
         }
 
-        function dodrop(event) {
-            var dt = event.dataTransfer;
-            var count = dt.mozItemCount;
-            output("Items: " + count + "\n");
 
-            for (var i = 0; i < count; i++) {
-                output(" Item " + i + ":\n");
-                var types = dt.mozTypesAt(i);
-                for (var t = 0; t < types.length; t++) {
-                    output("  " + types[t] + ": ");
-                    try {
-                        var data = dt.mozGetDataAt(types[t], i);
-                        output("(" + (typeof data) + ") : <" + data + " >\n");
-                    } catch (ex) {
-                        output("<<error>>\n");
-                        dump(ex);
-                    }
-                }
-            }
-        }
-
-        function output(text) {
-            document.getElementById("output").textContent += text;
-            dump(text);
-        }
-
-
-        function dragstart_handler(ev) {
-            // Add the target element's id to the data transfer object
-            ev.dataTransfer.setData("text/plain", ev.target.id);
-          }
-
-          window.addEventListener('DOMContentLoaded', () => {
-            // Get the element by id
-            //const element = document.getElementById("p1");
-            // Add the ondragstart event listener
-            //element.addEventListener("dragstart", dragstart_handler);
-          });
-
-          document.querySelectorAll(".drop-zone__input").forEach(inputElement => {
-              const dropZoneElement = inputElement(".drop-zone");
-              dropZoneElement.addEventListener("click", e => {
-                  inputElement.click();
-              });
-
-              dropZoneElement.addEventListener("click", e => {
-                if(inputElement.file.length){
-                    updateThumbnail(dropZoneElement, inputElement.file[0]);
-                }
-            });
-
-
-            dropZoneElement.addEventListener("dragover", e => {
-                e.preventDefault();
-                dropZoneElement.classList.add("drop-zone__over");
-
-            });
-            ["dragleave", "dragged"].forEach(type =>{
-                dropZoneElement.addEventListener("click", e => {
-                    if(inputElement.file.length){
-                        updateThumbnail(dropZoneElement, inputElement.file[0]);
-                    }
-                });
-            });
-
-          })
 
     </script>
 
