@@ -26,7 +26,10 @@ Create Document
                 <div id="date-btn" class="drag-btn" draggable="true"><p class="btn-text">Date</p><i class="fas fa-calendar-day"></i></div>
                 <div id="dropdown-btn" class="drag-btn" draggable="true"><p class="btn-text">Dropdown</p><i class="far fa-list-alt"></i></div>
 
-            </div>
+            </div>{% csrf_token %}
+            <button id='save-btn' class="btn btn-outline-success">Save</button>
+            <div id='focus-btn' class="btn btn-outline-success">Focus</div>
+            <a class="btn btn-outline-primary" href="{% url 'workflow:add-document' %}">Add In WorkFlow</a>
             <a style="display:none" class="btn btn-outline-primary" id="show-btn">Show PDF</a>
             <iframe id="pdf" style="display: none; width: 100%; height: 100vh;"></iframe>
         </div>
@@ -47,7 +50,7 @@ Create Document
         .page{
             display:  block;
             position:  relative;
-            width: 80%;
+            width: 720px;
             height: 800px;
             margin: 30px auto;
             padding: 5%;
@@ -63,6 +66,7 @@ Create Document
             display: flex;
             flex-direction: column;
             align-items: center;
+
         }
 
         ::-webkit-resizer {
@@ -70,12 +74,11 @@ Create Document
         }
 
         .button-container{
-
             display: grid;
             grid-template-columns: 48% 48%;
             grid-gap: 10px;
             height: 200px;
-            width: 25vw;
+            width: 280px;
             padding: 10px;
             align-items: center;
 
@@ -97,7 +100,7 @@ Create Document
 
         /* width */
         ::-webkit-scrollbar {
-          width: 10px;
+          width: 5px;
         }
 
         /* Track */
@@ -150,6 +153,13 @@ Create Document
             event.dataTransfer.setData("text/plain", "SIGN");
         }
 
+        const fBtn = document.getElementById('focus-btn');
+        fBtn.onclick = (ev) => {
+            console.log('Clicked');
+            const pdfFile = document.getElementById('pdf-file');
+
+            console.log(pdfFile.activeElement)
+        }
 
         function getResizer(attr1, attr2){
             const resizer = document.createElement('span');
@@ -254,11 +264,10 @@ Create Document
         function getDateField(){
             const d = new Date();
             const dd = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+            console.log(dd)
 
             const dateField = document.createElement('input');
             dateField.type = 'date';
-
-            console.log(typeof dd, dd);
             dateField.value = dd;
 
             dateField.style.width = '100%';
@@ -298,9 +307,10 @@ Create Document
                 image.style.marginTop = '4%';
                 image.style.cursor = 'grab';
                 image.setAttribute('draggable', false);
-                image.setAttribute('contenteditable', true);
-                ev.target.style.display = 'none';
-                ev.target.parentNode.append(image);
+                //image.setAttribute('contenteditable', true);
+                //ev.target.style.display = 'none';
+                const cont = ev.target.parentNode
+                cont.replaceChild( image, ev.target);
             }
 
             return imgField;
@@ -309,16 +319,25 @@ Create Document
 
         function getSignField(){
 
-            const signF = document.createElement('div');
+            const signF = document.createElement('a');
             signF.style.width = '100%';
-            signF.style.height = '2em';
+            signF.style.height = '90%';
             signF.style.display = 'flex';
             signF.style.cursor = 'pointer';
             signF.style.justifyContent = 'center';
             signF.style.alignItems = 'center';
             signF.innerHTML = 'Signature...<i class="fa fa-pencil"></i>';
 
-            signF.onclick = (ev) => {
+            signF.addEventListener('click', addCanEditor, false) 
+
+            function addCanEditor(ev) {
+                let signField ;
+                if(ev.target.dataset.img === 'isign'){
+                    signField = ev.target
+                } else {
+                    signField = ev.target
+                }
+
                 const containerDIV = document.createElement('div');
                 containerDIV.style.width = '100%';
                 containerDIV.style.height = '100%';
@@ -328,21 +347,27 @@ Create Document
                 containerDIV.style.display = 'flex';
                 containerDIV.style.justifyContent = 'center';
                 containerDIV.style.alignItems = 'center';
+                containerDIV.style.zIndex = 100;
                 containerDIV.setAttribute('data-name', 'containerDIV');
 
                 const svgEditor = document.createElement('div');
-                svgEditor.style.height = '50vh';
+                //svgEditor.style.height = '50vh';
                 svgEditor.style.width = '50vw';
-                svgEditor.style.backgroundColor = '#fff';
+                svgEditor.style.backgroundColor = '#fffc';
                 svgEditor.style.borderRadius = '3%';
+                svgEditor.style.display = 'flex';
+                svgEditor.style.flexDirection = 'column';
 
                 const canvas = document.createElement('canvas');
-                const width = screen.width / 3 ;
-                const height = screen.height / 3 ;
-                canvas.setAttribute('width', width + 'px');
+                const width = window.innerWidth / 2;
+                const height = window.innerHeight / 3 ;
+                console.log(screen.innerWidth, screen.innerHeight)
+                canvas.setAttribute('width', ((window.innerWidth / 2) - (window.innerWidth / 20) ) + 'px');
                 canvas.setAttribute('height', height + 'px');
                 canvas.style.border = '1px solid black';
+                canvas.style.backgroundColor = '#fff';
                 canvas.style.margin = '5%';
+                canvas.setAttribute('draggable', false);
 
                 const ctx = canvas.getContext('2d');
                 let drawing = false;
@@ -351,23 +376,36 @@ Create Document
                     x: 0,
                     y: 0
                 };
+
                 canvas.onmousedown = (ev) => {
                     drawing = true;
-                    startp.x = ev.target.offsetX;
-                    startp.y = ev.target.offsetY;
+                    startp.x = ev.pageX - (width / 2) - (window.innerWidth / 40);
+                    startp.y = ev.pageY - (height / 2) - (window.innerHeight / 8);
+
+                    const p = {
+                            x: ev.pageX - (width / 2) - (window.innerWidth / 40),
+                            y: ev.pageY - (height / 2) - (window.innerHeight / 8)
+                        }
+                    pointArry.push(p)
                 }
-                canvas.onmouseup = (ev) => { drawing = false }
+                canvas.onmouseup = (ev) => {
+                    drawing = false
+                    while(pointArry.length){
+                        pointArry.pop()
+                    }
+
+                }
                 canvas.onmousemove = (ev) => {
                     if( drawing ){
                         const p = {
-                            x: ev.pageX - ev.offsetX,
-                            y: ev.pageY - ev.offsetY
+                            x: ev.pageX - (width / 2) - (window.innerWidth / 40),
+                            y: ev.pageY - (height / 2) - (window.innerHeight / 8)
                         }
-                        pointArry.push(p)
+                        pointArry.push(p);
                     }
                     ctx.lineJoin = 'round';
                     ctx.lineCap = 'round';
-                    ctx.lineWidth = 5;
+                    ctx.lineWidth = 4;
                     ctx.beginPath();
 
                     //console.log(event);
@@ -382,12 +420,57 @@ Create Document
                     //ctx.fillRect(10, 10, 150, 100);
                 }
 
+                const menuCanvas = document.createElement('div');
+                menuCanvas.style.display = 'flex';
+                menuCanvas.style.justifyContent = 'center';
+                menuCanvas.style.marginBottom = '5%';
+
+                const clearBtn = document.createElement('button');
+                clearBtn.innerHTML = 'Clear';
+                clearBtn.className = 'btn btn-outline-danger';
+
+                clearBtn.onclick = (ev) => {
+                    ctx.clearRect(0, 0, width, height);
+                }
+
+                const acceptBtn = document.createElement('button');
+                acceptBtn.innerHTML = 'Accept';
+                acceptBtn.className = 'btn btn-outline-success';
+                acceptBtn.style.marginLeft = '5%';
+
+                acceptBtn.onclick = (evnt) => {
+                    const canImg = new Image();
+                    canImg.src = canvas.toDataURL();
+                    canImg.style.width = '90%';
+                    canImg.style.height = '90%';
+                    canImg.style.cursor = 'pointer';
+                    canImg.setAttribute('data-img', 'isign');
+
+                    canImg.addEventListener('click', addCanEditor, false);
+
+                    /*for ( child of signField.children ) {
+                        signField.removeChild(child);
+                    }
+                    signField.innerHTML = '';*/
+
+                    const container = signField.parentElement
+                    container.removeChild(signField);
+
+                    container.append(canImg);
+
+                    containerDIV.remove();
+                }
+
+                menuCanvas.append(clearBtn);
+                menuCanvas.append(acceptBtn);
+
                 svgEditor.append(canvas);
+                svgEditor.append(menuCanvas);
                 containerDIV.append(svgEditor);
 
                 containerDIV.onclick = (ev) => {
                     if(ev.target.dataset.name === 'containerDIV'){
-                        ev.target.style.display = 'none';
+                        ev.target.remove()
                     }
                 }
 
@@ -482,8 +565,8 @@ Create Document
             }
 
             if(typeOfOperation === 'SIGN'){
-                textFHolder.style.width = '150px';
-                textFHolder.style.height = '150px';
+                textFHolder.style.width = '200px';
+                textFHolder.style.height = '100px';
                 inputField = getSignField();
             }
 
@@ -511,7 +594,7 @@ Create Document
                 eventh.preventDefault();
                 eventh.target.style.outline = '0px';
                 eventh.target.parentNode.style.border = '1px solid rgb(255 191 0)';
-                eventh.target.parentNode.style.zIndex = '5';
+                eventh.target.parentNode.style.zIndex = '1';
                 for(child of eventh.target.parentNode.children){
                     if(child.className === 'resizeBtn' || child.className === 'holder-menu'){
                         child.style.display = 'block';
@@ -521,7 +604,7 @@ Create Document
 
             textFHolder.onfocusout = (eventh) => {
                 eventh.target.parentNode.style.border = '1px dashed rgb(255 191 0)';
-                eventh.target.parentNode.style.zIndex = '0';
+                eventh.target.parentNode.style.zIndex = '2';
                 let hM;
                 for(child of eventh.target.parentNode.children){
                     if(child.className === 'resizeBtn'){
@@ -595,15 +678,99 @@ Create Document
 
         pdfFile.ondragover = (event) => {
             event.preventDefault();
+            //event.target.style.border = '1px dashed green'
         }
 
         pdfFile.ondrop = (event) => {
             event.preventDefault();
             const typeOfOperation = event.dataTransfer.getData("text/plain");
             addInputElement(event, typeOfOperation);
+            //event.target.style.border = 'none'
         };
 
 
+        const saveFile = document.getElementById('save-btn');
+
+        saveFile.onclick = saveDocument;
+
+        let contentFile = [];
+
+        function saveDocument(){
+            //const file = document.getElementsByClassName('doc-content');
+            const pdfFile = document.getElementById('pdf-file');
+            contentFile = [];
+            
+            console.log(fileContent)
+            for( child of pdfFile.children ){
+                const txt = child.getElementsByTagName("textarea");
+                let elem = {}
+                if( txt.length ){
+                    elem = {
+                        width: child.style.width,
+                        height: child.style.height,
+                        top: child.style.top,
+                        left: child.style.left,
+                        data: txt[0].value
+                    }
+                }
+
+                const img = child.getElementsByTagName("img");
+                if( img.length ){
+                    const canvas = document.createElement('canvas');
+                    canvas.setAttribute('width', child.style.width);
+                    canvas.setAttribute('height', child.style.height);
+
+                    //document.images[i].parentNode.insertBefore(canvas,document.images[i]);
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img[0], child.style.width, child.style.height);
+
+
+                    elem = {
+                        width: child.style.width,
+                        height: child.style.height,
+                        top: child.style.top,
+                        left: child.style.left,
+                        data: canvas.toDataURL()
+                    }
+                }
+
+                const date = child.getElementsByTagName("input");
+                if( date.length ){
+                    elem = {
+                        width: child.style.width,
+                        height: child.style.height,
+                        top: child.style.top,
+                        left: child.style.left,
+                        data: date[0].value
+                    }
+                }
+                
+                contentFile.push(elem);
+            }
+
+            console.log(contentFile)
+
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            const requestURL = '/editor/api/save-file/';
+            //const requestBody = {  content: fileContent  }
+            //const saveFileRequest = new Request(requestURL);
+            const saveFileRequest = new Request(requestURL, {headers: {'X-CSRFToken': csrftoken}} );
+
+            fetch(saveFileRequest, {
+                method: 'POST',
+                mode: 'same-origin',
+                body: JSON.stringify(contentFile)
+            }).then(async function(response) {
+                const fileObject = await response.json();
+                console.log(fileObject)
+            })
+
+
+        }
+
+        /*
         const showPDF = document.getElementById('show-btn');
 
         showPDF.onclick = () => {
@@ -624,7 +791,7 @@ Create Document
 
             console.log(fileContent)
 
-            /*
+            
             cPdf();
             async function cPdf() {
                 const pdfDoc = await PDFLib.PDFDocument.create();
@@ -656,7 +823,7 @@ Create Document
 
             }*/
 
-        }
+        
 
 
 
