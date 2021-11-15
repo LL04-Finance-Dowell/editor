@@ -6,6 +6,15 @@ Create Document
 
 {% block content %}
 <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+<div style="display:none">
+    <p id="current-user">{{ request.user }}</p>
+    <ul id="user-list">
+    {% for user in users %}
+        <li>{{ user }}</li>
+    {% endfor %}
+    </ul>
+</div>
+
 <div>
     <script src="https://unpkg.com/pdf-lib"></script>
     <div style="display:flex; ">
@@ -17,6 +26,11 @@ Create Document
             </div>
         </div>
         <div class="menu-container">
+            <div style="display: flex; flex-direction:row; justify-content: space-around;">
+                <small id="file_id" style="display: none"></small>
+                <small id="file_name"></small>
+
+            </div>
             <h6>Fields</h6>
             <div class="button-container">
                 <div id="txt-btn" class="drag-btn" draggable="true"><p class="btn-text">Text</p><i class="fas fa-align-left"></i></div>
@@ -27,11 +41,13 @@ Create Document
                 <div id="dropdown-btn" class="drag-btn" draggable="true"><p class="btn-text">Dropdown</p><i class="far fa-list-alt"></i></div>
 
             </div>{% csrf_token %}
-            <button id='save-btn' class="btn btn-outline-success">Save</button>
-            <div id='focus-btn' class="btn btn-outline-success">Focus</div>
-            <a class="btn btn-outline-primary" href="{% url 'workflow:add-document' %}">Add In WorkFlow</a>
-            <a style="display:none" class="btn btn-outline-primary" id="show-btn">Show PDF</a>
+            <button id='save-btn' class="btn btn-outline-success mt-3">Save</button>
+            
+            <a class="btn btn-outline-primary mt-3" href="{% url 'workflow:add-document' %}">Add In WorkFlow</a>
+            <a style="display:none" class="btn btn-outline-primary mt-3" id="show-btn">Show PDF</a>
+            <button class="btn btn-outline-primary mt-3" id="view-files">View files</button> 
             <iframe id="pdf" style="display: none; width: 100%; height: 100vh;"></iframe>
+
         </div>
 
     </div>
@@ -66,7 +82,8 @@ Create Document
             display: flex;
             flex-direction: column;
             align-items: center;
-
+            background-color: #d9cfca;
+            margin: 10px auto;
         }
 
         ::-webkit-resizer {
@@ -132,6 +149,7 @@ Create Document
         const tableBtn = document.getElementById("table-btn");
         const dateBtn = document.getElementById("date-btn");
         const signatureBtn = document.getElementById("signature-btn");
+        
 
         txtBtn.ondragstart = (event) => {
             event.dataTransfer.setData("text/plain", "TEXT_BUTTON");
@@ -153,13 +171,6 @@ Create Document
             event.dataTransfer.setData("text/plain", "SIGN");
         }
 
-        const fBtn = document.getElementById('focus-btn');
-        fBtn.onclick = (ev) => {
-            console.log('Clicked');
-            const pdfFile = document.getElementById('pdf-file');
-
-            console.log(pdfFile.activeElement)
-        }
 
         function getResizer(attr1, attr2){
             const resizer = document.createElement('span');
@@ -261,10 +272,16 @@ Create Document
         }
 
 
-        function getDateField(){
-            const d = new Date();
-            const dd = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
-            console.log(dd)
+        function getDateField(value){
+            let dd = undefined;
+            if( value ){
+                dd = value
+            } else {
+                const d = new Date();
+                dd = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+                console.log(dd)
+            }
+            
 
             const dateField = document.createElement('input');
             dateField.type = 'date';
@@ -307,13 +324,25 @@ Create Document
                 image.style.marginTop = '4%';
                 image.style.cursor = 'grab';
                 image.setAttribute('draggable', false);
-                //image.setAttribute('contenteditable', true);
+                image.setAttribute('contenteditable', true);
                 //ev.target.style.display = 'none';
                 const cont = ev.target.parentNode
                 cont.replaceChild( image, ev.target);
             }
 
             return imgField;
+        }
+
+        function renderImageField(){
+            const image = document.createElement('img');
+            image.style.width = '100%';
+            image.style.height = '95%';
+            image.style.marginTop = '4%';
+            image.style.cursor = 'grab';
+            image.setAttribute('draggable', false);
+            image.setAttribute('contenteditable', true);
+
+            return image
         }
 
 
@@ -504,11 +533,176 @@ Create Document
 
             closeBtn.onclick = (eventclk) => {
                 eventclk.preventDefault();
-                eventclk.target.parentNode.parentNode.parentNode.remove();
+                if(eventclk.target.parentNode.parentNode.parentNode.id != 'pdf-file'){
+                    eventclk.target.parentNode.parentNode.parentNode.remove();
+                }
+                
             };
             return closeBtn;
         }
 
+        //select user on fields 'select-option' field
+        function getSelectOptionsField(){
+            const select = document.createElement('select');
+            select.className = "form-select form-select-sm auth-user";
+
+            const userList = document.getElementById('user-list')
+            
+            for(let item of userList.children){
+                const opt = document.createElement('option');
+                opt.innerHTML = item.innerHTML;
+                opt.setAttribute("value", item.innerHTML)
+                select.append(opt);
+
+            }
+     
+            return select;
+        }
+
+
+
+        //Input field holder
+        function getHolder(measure){
+            const holderDIV = document.createElement('div');
+            holderDIV.style.width = measure.width;
+            holderDIV.style.height = measure.height;
+            holderDIV.style.border = '1px dashed rgb(255 191 0)';
+            holderDIV.style.position = 'absolute';
+            holderDIV.style.left = measure.left;
+            holderDIV.style.top = measure.top;
+            holderDIV.style.overflow = 'visible';
+            holderDIV.style.cursor = 'move';
+
+            const resizerTL = getResizer('top', 'left');
+            holderDIV.append(resizerTL);
+            const resizerTR = getResizer('top', 'right');
+            holderDIV.append(resizerTR);
+            const resizerBL = getResizer('bottom', 'left');
+            holderDIV.append(resizerBL);
+            const resizerBR = getResizer('bottom', 'right');           
+            holderDIV.append(resizerBR);
+
+
+            const holderMenu = document.createElement('div');
+            holderMenu.style.position = 'absolute';
+            holderMenu.style.height = '25px';
+            holderMenu.style.right = '0px';
+            holderMenu.style.top = '-30px';
+            holderMenu.style.display = 'block';
+            holderMenu.style.borderRadius = '5%';
+            holderMenu.className = 'holder-menu';
+            holderMenu.style.backgroundColor = 'rgb(129 129 129 / 50%)';
+
+            
+            holderMenu.append(getDeleteBtn());
+
+            
+            holderDIV.append(holderMenu);
+            
+            holderDIV.onfocusin = (eventh) => {
+                eventh.preventDefault();
+                eventh.target.style.outline = '0px';
+                eventh.target.parentNode.style.border = '1px solid rgb(255 191 0)';
+                eventh.target.parentNode.style.zIndex = '5';
+                for(child of eventh.target.parentNode.children){
+                    if(child.className === 'resizeBtn' || child.className === 'holder-menu'){
+                        child.style.display = 'block';
+                    }
+                }
+            };
+
+            holderDIV.onfocus = (eventh) => {
+                eventh.preventDefault();
+                eventh.target.style.outline = '0px';
+                eventh.target.parentNode.style.border = '1px solid rgb(255 191 0)';
+                eventh.target.parentNode.style.zIndex = '5';
+                for(child of eventh.target.parentNode.children){
+                    if(child.className === 'resizeBtn' || child.className === 'holder-menu'){
+                        child.style.display = 'block';
+                    }
+                }
+            };
+
+            holderDIV.onfocusout = (eventh) => {
+                eventh.target.parentNode.style.border = '1px dashed rgb(255 191 0)';
+                eventh.target.parentNode.style.zIndex = '2';
+                let hM;
+                for(child of eventh.target.parentNode.children){
+                    if(child.className === 'resizeBtn'){
+                        child.style.display = 'none';
+                    }
+
+                    if(child.className === 'holder-menu'){
+                        hM = child;
+                    }
+                }
+
+                if( hM ){
+                    setTimeout(function() {
+                        hM.style.display = 'none';
+                    }, 200);
+                }
+            };
+
+
+
+            function drag_new( event ) {
+                if(!resizing){
+                    let initX = event.screenX;
+                    let initY = event.screenY;
+                    
+                    const holder = event.target;
+                    const holderPos = (function () {
+                        const holderPos = {
+                            top : parseInt(holder.style.top.slice(0, -2)),
+                            left : parseInt(holder.style.left.slice(0, -2))
+                        }
+                        return Object.seal(holderPos);
+                    })();
+
+                    window.addEventListener('mousemove', moveObject);
+                    function moveObject(ev) {
+                        ev.preventDefault();
+                        const diffX = ev.screenX - initX;
+                        const diffY = ev.screenY - initY;
+                        holder.style.top = ( holderPos.top + diffY ) + 'px';
+                        holder.style.left = ( holderPos.left + diffX ) + 'px';
+                        
+                    }
+
+                    window.addEventListener('mouseup', stopMove);
+                    function stopMove(ev){
+                        window.removeEventListener('mousemove', moveObject);
+                        window.removeEventListener('mouseup', stopMove);
+
+                    }
+                }
+            }
+
+
+            holderDIV.addEventListener('mousedown', (event) => {
+                drag_new(event)
+            }, false);
+
+            return holderDIV
+        }
+
+        //Function to run when Input is focused
+        const focusInEvent = (eventh) => {
+            eventh.preventDefault();
+            eventh.target.style.outline = '0px';
+            if (eventh.target.parentNode.className != 'holder-menu'){
+                eventh.target.parentNode.style.border = '1px solid rgb(255 191 0)';
+                eventh.target.parentNode.style.zIndex = '5';
+                for(child of eventh.target.parentNode.children){
+                    if(child.className === 'resizeBtn' || child.className === 'holder-menu'){
+                        child.style.display = 'block';
+                    }
+                }
+            }
+            
+            
+        };
 
         function addInputElement(event, typeOfOperation) {
             const textFHolder = document.createElement('div');
@@ -520,6 +714,7 @@ Create Document
             textFHolder.style.top = event.offsetY + 'px';
             textFHolder.style.overflow = 'visible';
             textFHolder.style.cursor = 'move';
+            textFHolder.setAttribute('data-idD', 'INPUT_HOLDER')
 
             const resizerTL = getResizer('top', 'left');
             const resizerTR = getResizer('top', 'right');
@@ -533,13 +728,15 @@ Create Document
 
             const holderMenu = document.createElement('div');
             holderMenu.style.position = 'absolute';
-            holderMenu.style.height = '25px';
-            holderMenu.style.right = '0px';
-            holderMenu.style.top = '-30px';
+            holderMenu.style.height = '30px';
+            holderMenu.style.left = '0px';
+            holderMenu.style.top = '-32px';
             holderMenu.style.display = 'block';
             holderMenu.style.borderRadius = '5%';
             holderMenu.className = 'holder-menu';
             holderMenu.style.backgroundColor = 'rgb(129 129 129 / 50%)';
+            //holderMenu.style.transform = 'translateX(-50%)';
+            holderMenu.append(getSelectOptionsField());
             holderMenu.append(getDeleteBtn());
 
             let inputField = document.createElement('div') ;
@@ -560,8 +757,8 @@ Create Document
 
             if(typeOfOperation === 'DATE'){
                 textFHolder.style.width = '150px';
-                textFHolder.style.height = '35px';
-                inputField = getDateField();
+                textFHolder.style.height = '40px';
+                inputField = getDateField(undefined);
             }
 
             if(typeOfOperation === 'SIGN'){
@@ -578,7 +775,11 @@ Create Document
             textFHolder.append(inputField);
             event.target.append(textFHolder);
 
-            textFHolder.onfocusin = (eventh) => {
+            
+
+            textFHolder.onfocusin = focusInEvent;
+
+            /*textFHolder.onfocus = (eventh) => {
                 eventh.preventDefault();
                 eventh.target.style.outline = '0px';
                 eventh.target.parentNode.style.border = '1px solid rgb(255 191 0)';
@@ -588,21 +789,9 @@ Create Document
                         child.style.display = 'block';
                     }
                 }
-            };
+            };*/
 
-            textFHolder.onfocus = (eventh) => {
-                eventh.preventDefault();
-                eventh.target.style.outline = '0px';
-                eventh.target.parentNode.style.border = '1px solid rgb(255 191 0)';
-                eventh.target.parentNode.style.zIndex = '1';
-                for(child of eventh.target.parentNode.children){
-                    if(child.className === 'resizeBtn' || child.className === 'holder-menu'){
-                        child.style.display = 'block';
-                    }
-                }
-            };
-
-            textFHolder.onfocusout = (eventh) => {
+            /*textFHolder.onfocusout = (eventh) => {
                 eventh.target.parentNode.style.border = '1px dashed rgb(255 191 0)';
                 eventh.target.parentNode.style.zIndex = '2';
                 let hM;
@@ -621,7 +810,7 @@ Create Document
                         hM.style.display = 'none';
                     }, 200);
                 }
-            };
+            };*/
 
 
 
@@ -660,7 +849,9 @@ Create Document
             }
 
 
-            textFHolder.onmousedown = drag_new(event);
+            textFHolder.addEventListener('mousedown', (ev) => {
+                drag_new(ev)
+            });
 
             inputField.onpointerover = (event) => {
                 textFHolder.removeEventListener('mousedown', drag_new);
@@ -678,17 +869,23 @@ Create Document
 
         pdfFile.ondragover = (event) => {
             event.preventDefault();
-            //event.target.style.border = '1px dashed green'
+            if (event.target.id === 'pdf-file'){
+                event.target.style.border = '1px dashed green'
+            }            
         }
 
         pdfFile.ondrop = (event) => {
             event.preventDefault();
             const typeOfOperation = event.dataTransfer.getData("text/plain");
             addInputElement(event, typeOfOperation);
+            if (event.target.id === 'pdf-file'){
+                event.target.style.border = '0px dashed green'
+            }
             //event.target.style.border = 'none'
         };
 
-
+        
+        // Saving file 
         const saveFile = document.getElementById('save-btn');
 
         saveFile.onclick = saveDocument;
@@ -700,17 +897,22 @@ Create Document
             const pdfFile = document.getElementById('pdf-file');
             contentFile = [];
             
-            console.log(fileContent)
             for( child of pdfFile.children ){
+                const sel = child.getElementsByClassName('auth-user');
+                const authUser = sel[0].value;
+
                 const txt = child.getElementsByTagName("textarea");
                 let elem = {}
                 if( txt.length ){
+                    
                     elem = {
                         width: child.style.width,
                         height: child.style.height,
                         top: child.style.top,
                         left: child.style.left,
-                        data: txt[0].value
+                        type:'TEXT_INPUT',
+                        data: txt[0].value,
+                        authorized_user: authUser
                     }
                 }
 
@@ -723,15 +925,19 @@ Create Document
                     //document.images[i].parentNode.insertBefore(canvas,document.images[i]);
 
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img[0], child.style.width, child.style.height);
+                    ctx.drawImage(img[0], 0, 0, parseInt(child.style.width.slice(0, -2)), parseInt(child.style.height.slice(0, -2)));
 
+                    console.log(canvas.toDataURL())
+                    console.log(img[0].src)
 
                     elem = {
                         width: child.style.width,
                         height: child.style.height,
                         top: child.style.top,
                         left: child.style.left,
-                        data: canvas.toDataURL()
+                        type:'IMG_INPUT',
+                        data: canvas.toDataURL(),
+                        authorized_user: authUser
                     }
                 }
 
@@ -742,33 +948,163 @@ Create Document
                         height: child.style.height,
                         top: child.style.top,
                         left: child.style.left,
-                        data: date[0].value
+                        type:'DATE_INPUT',
+                        data: date[0].value,
+                        authorized_user: authUser
                     }
                 }
                 
                 contentFile.push(elem);
             }
 
-            console.log(contentFile)
+            //console.log(contentFile)
 
             const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
             const requestURL = '/editor/api/save-file/';
-            //const requestBody = {  content: fileContent  }
-            //const saveFileRequest = new Request(requestURL);
             const saveFileRequest = new Request(requestURL, {headers: {'X-CSRFToken': csrftoken}} );
+
+            const file_id = document.getElementById('file_id');
+            const file_name = document.getElementById('file_name');
+                        
+            let fileID = undefined;
+
+            if( file_id ) {
+                fileID = file_id.innerHTML
+            } else {
+                fileID = ''
+            }
+
+            body = {
+                file_id: fileID,
+                file_name: file_name.innerHTML,
+                content: contentFile
+            }
 
             fetch(saveFileRequest, {
                 method: 'POST',
                 mode: 'same-origin',
-                body: JSON.stringify(contentFile)
+                body: JSON.stringify(body)
             }).then(async function(response) {
                 const fileObject = await response.json();
+                
+                file_id.innerHTML = fileObject.file.file_id
+
+                const f_name = document.getElementById('file_name');
+                f_name.innerHTML = fileObject.file.name
                 console.log(fileObject)
             })
 
 
         }
+
+        //rendering file after getting file data
+        function renderFile(data){
+            const content = JSON.parse(data);
+            const pdfFile = document.getElementById('pdf-file');
+            const currUser = document.getElementById('current-user')
+            console.log(pdfFile.children)
+
+            if( pdfFile.children.length ){
+                const noOfItems = pdfFile.children.length
+                for(let i = 0; i < noOfItems ; i++){
+                    pdfFile.removeChild(pdfFile.children[0]);
+                }
+            }
+
+            for( let item of content ){
+                const holder = getHolder(item);
+                let inputField = undefined;
+
+                if( item.type === "TEXT_INPUT" ){
+                    
+                    inputField = getTextField();
+                    inputField.value = item.data;
+                }
+
+                
+                if( item.type === "DATE_INPUT" ){
+                    inputField = getDateField();
+                    inputField.value = item.data;
+                }
+
+                if( item.type === "IMG_INPUT" ){
+                    inputField = renderImageField();
+                    inputField.src = item.data;
+                }
+
+                holder.append(inputField)
+                pdfFile.append(holder);
+            }
+
+        }
+
+        // To get previous files list
+        const viewFiles = document.getElementById("view-files");
+        viewFiles.onclick = (ev) =>{
+            //const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const requestURL = '/editor/api/file-list/';
+            const getFileListRequest = new Request(requestURL)//, {headers: {'X-CSRFToken': csrftoken}} );
+
+            
+            fetch(getFileListRequest, {
+                method: 'GET',
+            }).then(async function(response) {
+                const responseObject = await response.json();                
+                const f_name = document.getElementById('file_name');
+                f_name.style.display = 'flex';
+                f_name.style.flexDirection = 'column';
+
+                for(child of f_name.children){
+                    f_name.children.removeChild(child)
+                }
+
+                for (let file of responseObject.file){
+                    const ele = document.createElement('h6');
+                    ele.className = "btn btn-sm btn-outline-info"
+                    ele.innerHTML = file.name
+                    ele.setAttribute("data-id", file.file_id)
+                    
+
+                    ele.onclick = (ev) => {
+                        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                        const requestURL = '/editor/api/get-file/';
+                        const getFileRequest = new Request(requestURL, {headers: {'X-CSRFToken': csrftoken}} );
+
+                        console.log("Clicked - ", ev.target.innerHTML, ev.target.dataset.id)
+
+                        fetch(getFileRequest, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                id: ev.target.dataset.id
+                            })
+                        }).then(async function(response) {
+                            const responseFileObject = await response.json();
+
+                            const file_id = document.getElementById('file_id');
+                            file_id.innerHTML = ev.target.dataset.id;
+
+                            const file_nameDIV = document.getElementById('file_name');
+                            file_nameDIV.innerHTML = ev.target.innerHTML
+
+                            renderFile(responseFileObject.file)
+
+                        }).catch(error => {
+                            console.error(error, "Error loading file");
+                        });
+                    }
+
+                    f_name.append(ele)
+
+                }
+                //End of for loop
+                
+            }).catch(error => {
+                console.error(error, "Error fetching files");
+              });
+
+        }
+
+
 
         /*
         const showPDF = document.getElementById('show-btn');
